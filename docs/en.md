@@ -92,6 +92,10 @@ keeps those costs empty.
 - _no taxes nor grid fees for the postcode_: Ostrom answered prices without
   taxes for the postcode of your contract; those prices are not yours and are
   not kept (asked again every 6 hours).
+- _Ostrom gave no price for some past days_: the past days (up to 31 days
+  back) could not be filled, for instance because Ostrom does not serve past
+  prices. Today's and tomorrow's prices are not affected; the costs of the
+  billing period of those days stay empty (asked again every 6 hours).
 - _A dynamic contract has no readable postcode_: its prices cannot be read.
 
 ## Privacy

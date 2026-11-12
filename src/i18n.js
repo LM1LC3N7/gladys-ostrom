@@ -77,6 +77,10 @@ const TEXTS = {
     en: ' Ostrom gave no taxes nor grid fees for the postcode of a contract: its prices are not kept (the contract is not priced).',
     fr: ' Ostrom n’a donné ni taxes ni frais de réseau pour le code postal d’un contrat : ses prix ne sont pas gardés (le contrat n’est pas tarifé).',
   },
+  pastMissing: {
+    en: ' Ostrom gave no price for some past days: the energy costs of their billing period stay empty (asked again every 6 hours).',
+    fr: ' Ostrom n’a donné aucun prix pour certains jours passés : les coûts d’énergie de leur période de facturation restent vides (redemandés toutes les 6 heures).',
+  },
   noZip: {
     en: ' A dynamic contract has no readable postcode: its prices cannot be read.',
     fr: ' Un contrat dynamique n’a pas de code postal lisible : ses prix ne peuvent pas être lus.',

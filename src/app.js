@@ -212,6 +212,7 @@ export class OstromApp {
     this.data = {
       lastContracts: null,
       lastPrices: null,
+      lastHoles: null,
       lastConsumption: null,
       lastFull: null,
       failures: 0,
@@ -235,6 +236,8 @@ export class OstromApp {
 
     this.lastContractsMono = undefined;
     this.lastPricesMono = undefined;
+    this.lastHolesMono = undefined;
+    this.pastMissing = false;
     this.lastConsumptionMono = undefined;
     this.contractsOkAt = undefined;
     this.failures = 0;
@@ -343,6 +346,7 @@ export class OstromApp {
         this.lastError = undefined;
         this.pricesError = undefined;
         this.zipUnknown = false;
+        this.pastMissing = false;
         this.consumptionError = undefined;
       }
     }
@@ -554,7 +558,7 @@ export class OstromApp {
     const data = raw && typeof raw === 'object' ? raw : {};
     const now = this.now();
     const mono = this.monotonic();
-    for (const key of ['lastContracts', 'lastPrices', 'lastConsumption']) {
+    for (const key of ['lastContracts', 'lastPrices', 'lastHoles', 'lastConsumption']) {
       // A time of /data in the future is invalid: ignored.
       if (
         finite(data[key]) &&
@@ -610,6 +614,7 @@ export class OstromApp {
       version: 1,
       lastContracts: this.data.lastContracts,
       lastPrices: this.data.lastPrices,
+      lastHoles: this.data.lastHoles,
       lastConsumption: this.data.lastConsumption,
       lastFull: this.data.lastFull,
       failures: this.failures,
@@ -700,9 +705,12 @@ export class OstromApp {
       let from = addDays(now, -PRICE_BACKFILL_DAYS);
       if (finite(c.start) && c.start > from) from = c.start;
       const kept = this.data.prices[c.key] ?? {};
+      // Up to yesterday: the recent window (yesterday to tomorrow) is the
+      // hourly read's business.
+      const until = addDays(now, -1);
       for (
         let q = from - (from % QUARTER);
-        q < now && (first === undefined || q < first);
+        q < until && (first === undefined || q < first);
         q += QUARTER
       ) {
         if (kept[Math.floor(q / QUARTER)] === undefined) {
@@ -734,16 +742,18 @@ export class OstromApp {
       const n = berlin(addDays(now, 1));
       at = fromBerlin(n.y, n.mo, n.d, PRICES_HOUR);
     }
-    let due = mono + (at - now);
-    // A past quarter without a price blocks every delegated request of its
-    // billing period: read again, at most every 6 hours.
-    if (this.firstHole(targets, now) !== undefined) {
-      due = Math.min(
-        due,
-        this.dueOf(this.lastPricesMono, this.data.lastPrices, HOLES_INTERVAL, mono, now),
-      );
-    }
-    return Math.max(hourly, due);
+    return Math.max(hourly, mono + (at - now));
+  }
+
+  /**
+   * A past quarter without a price (before yesterday) blocks every delegated
+   * request of its billing period: read again on its own pace, at most every
+   * 6 hours, never mixed with the recent read.
+   */
+  holesDue(mono, now) {
+    const targets = this.priceTargets();
+    if (!targets.length || this.firstHole(targets, now) === undefined) return Infinity;
+    return this.dueOf(this.lastHolesMono, this.data.lastHoles, HOLES_INTERVAL, mono, now);
   }
 
   consumptionDue(mono, now) {
@@ -779,7 +789,12 @@ export class OstromApp {
     let due = this.contractsDue(mono, now);
     // The prices and the consumption need the contracts read in this process.
     if (this.contracts) {
-      due = Math.min(due, this.pricesDue(mono, now), this.consumptionDue(mono, now));
+      due = Math.min(
+        due,
+        this.pricesDue(mono, now),
+        this.holesDue(mono, now),
+        this.consumptionDue(mono, now),
+      );
     }
     if (this.pause) due = Math.max(due, this.pause.due);
     this.dueMono = Math.max(due, mono);
@@ -827,6 +842,14 @@ export class OstromApp {
         this.pricesDue(this.monotonic(), this.now()) <= this.monotonic()
       ) {
         await this.readPrices(gen);
+      }
+      if (this.gone(gen)) return;
+      if (
+        this.contracts &&
+        !this.pauseActive() &&
+        this.holesDue(this.monotonic(), this.now()) <= this.monotonic()
+      ) {
+        await this.readHoles(gen);
       }
       if (this.gone(gen)) return;
       if (
@@ -953,7 +976,6 @@ export class OstromApp {
 
   /** The prices of every postcode of the dynamic contracts (yesterday to the end of tomorrow). */
   async readPrices(gen) {
-    const session = this.session;
     const now = this.now();
     this.lastPricesMono = this.monotonic();
     this.data.lastPrices = now;
@@ -962,45 +984,27 @@ export class OstromApp {
     const targets = this.priceTargets();
     let problem;
     let zipUnknown = false;
-    // From yesterday, or from the day of the first past quarter without a
-    // price, to the end of tomorrow; by windows of at most 20 days.
-    const hole = this.firstHole(targets, now);
-    const start = Math.min(addDays(now, -1), hole === undefined ? Infinity : startOfDay(hole));
-    const end = addDays(now, 2);
-    const windows = [];
-    for (let from = start; from < end;) {
-      const to = Math.min(end, addDays(from, PRICE_WINDOW_DAYS));
-      windows.push([from, to]);
-      from = to;
-    }
+    // Yesterday to the end of tomorrow: the only window that says whether
+    // Ostrom knows the postcode, never held up by the past ones.
     for (const zip of [...new Set(targets.map((c) => c.zip))]) {
-      for (const [from, to] of windows) {
-        let parsed;
-        try {
-          const body = await session.get('/spot-prices', {
-            startDate: new Date(from).toISOString(),
-            endDate: new Date(to).toISOString(),
-            resolution: 'QUARTER_HOUR',
-            zip,
-          });
-          if (this.gone(gen)) return;
-          parsed = parseSpotPrices(body, this.now());
-          if (!parsed) throw new OstromError('bad_response');
-        } catch (err) {
-          if (STOPPING.has(err?.code)) throw err;
-          problem = codeOf(err);
-          this.log.warn(`Prices not read (${problem})`);
-          continue;
-        }
-        if (!parsed.zipKnown) {
-          zipUnknown = true;
-          break;
-        }
-        for (const c of targets.filter((x) => x.zip === zip)) {
-          this.record(c.key, parsed.prices);
-          if (parsed.fees !== undefined) {
-            this.fees.set(c.key, { value: parsed.fees, mono: this.monotonic() });
-          }
+      let parsed;
+      try {
+        parsed = await this.fetchPrices(gen, zip, addDays(now, -1), addDays(now, 2));
+        if (parsed === undefined) return;
+      } catch (err) {
+        if (STOPPING.has(err?.code)) throw err;
+        problem = codeOf(err);
+        this.log.warn(`Prices not read (${problem})`);
+        continue;
+      }
+      if (!parsed.zipKnown) {
+        zipUnknown = true;
+        continue;
+      }
+      for (const c of targets.filter((x) => x.zip === zip)) {
+        this.record(c.key, parsed.prices);
+        if (parsed.fees !== undefined) {
+          this.fees.set(c.key, { value: parsed.fees, mono: this.monotonic() });
         }
       }
     }
@@ -1012,6 +1016,59 @@ export class OstromApp {
     await this.save();
     if (this.gone(gen)) return;
     await this.publishPrices(gen);
+  }
+
+  /** One window of prices; undefined when the start is gone. */
+  async fetchPrices(gen, zip, from, to) {
+    const body = await this.session.get('/spot-prices', {
+      startDate: new Date(from).toISOString(),
+      endDate: new Date(to).toISOString(),
+      resolution: 'QUARTER_HOUR',
+      zip,
+    });
+    if (this.gone(gen)) return undefined;
+    const parsed = parseSpotPrices(body, this.now());
+    if (!parsed) throw new OstromError('bad_response');
+    return parsed;
+  }
+
+  /**
+   * The past quarters without a price (before yesterday, 31 days back at
+   * most), by windows of 20 days. A window with no taxed item means "days not
+   * given" (Ostrom may not serve the past): the hole stays, nothing else
+   * changes (the postcode is judged by the recent window only).
+   */
+  async readHoles(gen) {
+    const now = this.now();
+    this.lastHolesMono = this.monotonic();
+    this.data.lastHoles = now;
+    await this.save();
+    if (this.gone(gen)) return;
+    const targets = this.priceTargets();
+    const hole = this.firstHole(targets, now);
+    if (hole !== undefined) {
+      const end = addDays(now, -1);
+      for (const zip of [...new Set(targets.map((c) => c.zip))]) {
+        for (let from = startOfDay(hole); from < end;) {
+          const to = Math.min(end, addDays(from, PRICE_WINDOW_DAYS));
+          let parsed;
+          try {
+            parsed = await this.fetchPrices(gen, zip, from, to);
+            if (parsed === undefined) return;
+          } catch (err) {
+            if (STOPPING.has(err?.code)) throw err;
+            this.log.warn(`Past prices not read (${codeOf(err)})`);
+          }
+          from = to;
+          if (!parsed?.zipKnown) continue;
+          for (const c of targets.filter((x) => x.zip === zip)) this.record(c.key, parsed.prices);
+        }
+      }
+    }
+    if (this.gone(gen)) return;
+    this.pastMissing = this.firstHole(targets, this.now()) !== undefined;
+    this.prunePrices();
+    await this.save();
   }
 
   /** Prices kept in /data; a quarter already started keeps the price kept for it. */
@@ -1327,6 +1384,7 @@ export class OstromApp {
     if (this.lastError) add('lastFailed', { code: this.lastError, time: this.nextTime() });
     if (this.pricesError) add('pricesFailed', { code: this.pricesError });
     if (this.zipUnknown) add('zipUnknown');
+    if (this.pastMissing) add('pastMissing');
     if (this.contracts.some((c) => c.dynamic && !c.zip)) add('noZip');
     if (this.consumptionError) add('consumptionFailed', { code: this.consumptionError });
     return [!this.lastError, message];

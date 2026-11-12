@@ -56,7 +56,10 @@
   mean of a half hour costs 0; an unknown price fails the whole request of
   its billing period (never a silent zero), so the past quarters without a
   price (31 days back, the core's catch-up window) are read again at most
-  every 6 hours, by windows of 20 days. An
+  every 6 hours, by windows of 20 days, on their own pace and after the
+  recent window (yesterday to tomorrow), which alone judges the postcode: a
+  past window empty or without taxes leaves its hole and says so in the
+  status, never holds up today's prices. An
   hourly answer prices its four quarters. A quarter already started keeps the
   price first kept for it (a retry gets the same answer). Prices kept 40 days
   in `/data`, by contract.

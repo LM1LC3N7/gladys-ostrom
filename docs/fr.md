@@ -101,6 +101,11 @@ vides.
 - _ni taxes ni frais de réseau pour le code postal_ : Ostrom a répondu des prix
   sans taxes pour le code postal de votre contrat ; ces prix ne sont pas les
   vôtres et ne sont pas gardés (redemandés toutes les 6 heures).
+- _Ostrom n'a donné aucun prix pour certains jours passés_ : les jours passés
+  (jusqu'à 31 jours en arrière) n'ont pas pu être complétés, par exemple parce
+  qu'Ostrom ne sert pas les prix passés. Les prix d'aujourd'hui et de demain ne
+  sont pas touchés ; les coûts de la période de facturation de ces jours
+  restent vides (redemandés toutes les 6 heures).
 - _Un contrat dynamique n'a pas de code postal lisible_ : ses prix ne peuvent
   pas être lus.
 

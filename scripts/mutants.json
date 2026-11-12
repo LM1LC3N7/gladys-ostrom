@@ -158,7 +158,25 @@
   {
     "name": "past holes read at every round",
     "file": "src/app.js",
-    "from": "this.dueOf(this.lastPricesMono, this.data.lastPrices, HOLES_INTERVAL, mono, now),",
-    "to": "mono,"
+    "from": "return this.dueOf(this.lastHolesMono, this.data.lastHoles, HOLES_INTERVAL, mono, now);",
+    "to": "return mono;"
+  },
+  {
+    "name": "past holes read with the hourly recent read",
+    "file": "src/app.js",
+    "from": "return this.dueOf(this.lastHolesMono, this.data.lastHoles, HOLES_INTERVAL, mono, now);",
+    "to": "return this.dueOf(this.lastPricesMono, this.data.lastPrices, HOUR, mono, now);"
+  },
+  {
+    "name": "a past window without taxes judges the postcode",
+    "file": "src/app.js",
+    "from": "if (!parsed?.zipKnown) continue;",
+    "to": "if (!parsed?.zipKnown) {\n            this.zipUnknown = true;\n            break;\n          }"
+  },
+  {
+    "name": "the past read before the recent one",
+    "file": "src/app.js",
+    "from": "for (const zip of [...new Set(targets.map((c) => c.zip))]) {\n      let parsed;",
+    "to": "if (this.firstHole(targets, now) !== undefined) return;\n    for (const zip of [...new Set(targets.map((c) => c.zip))]) {\n      let parsed;"
   }
 ]
