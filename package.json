@@ -1,6 +1,6 @@
 {
   "name": "gladys-ostrom",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Ostrom (Germany) for Gladys Assistant: SimplyDynamic prices (spot price, taxes and levies of your postcode) for a delegated energy contract, and the smart-meter consumption, read from the official Ostrom API with your own API client. Read-only. Unofficial, not affiliated with Ostrom.",
   "type": "module",

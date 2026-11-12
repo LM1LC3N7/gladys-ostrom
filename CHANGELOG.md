@@ -10,6 +10,8 @@ the notes of the version's GitHub Release.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-12
+
 ### Added
 
 - First version: Ostrom contracts read through the official Ostrom API
@@ -26,3 +28,6 @@ the notes of the version's GitHub Release.
   for Germany), which needs Gladys 5.3.0 or later.
 - Past quarters without a price (Gladys stopped, Ostrom unavailable) are read
   again, up to 31 days back, at most every 6 hours.
+
+[Unreleased]: https://github.com/LM1LC3N7/gladys-ostrom/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/LM1LC3N7/gladys-ostrom/releases/tag/v0.1.1
