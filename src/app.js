@@ -1384,6 +1384,10 @@ export class OstromApp {
     if (this.lastError) add('lastFailed', { code: this.lastError, time: this.nextTime() });
     if (this.pricesError) add('pricesFailed', { code: this.pricesError });
     if (this.zipUnknown) add('zipUnknown');
+    // Said only while a hole is still there (filled, or out of the 31 days).
+    if (this.pastMissing && this.firstHole(this.priceTargets(), this.now()) === undefined) {
+      this.pastMissing = false;
+    }
     if (this.pastMissing) add('pastMissing');
     if (this.contracts.some((c) => c.dynamic && !c.zip)) add('noZip');
     if (this.consumptionError) add('consumptionFailed', { code: this.consumptionError });

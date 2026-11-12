@@ -796,3 +796,23 @@ for (const [name, opts] of [
     assert.notEqual(current.data.price, null);
   });
 }
+
+test('"no price for some past days" leaves the status once the hole is gone, without a restart', async (t) => {
+  const missing = '2026-10-12T03:00:00.000Z';
+  const ostrom = createOstrom({
+    prices: ({ query }) => {
+      const body = O.spotPrices({
+        from: Date.parse(query.startDate),
+        to: Date.parse(query.endDate),
+      });
+      body.data = body.data.filter((i) => i.date !== missing);
+      return body;
+    },
+  });
+  const env = await started({ ostrom });
+  t.after(() => env.app.stop());
+  assert.match(statusText(env), /no price for some past days/);
+  // The quarter leaves the 31 days the core may ask: the message goes at the next round.
+  await env.wait(2 * DAY);
+  assert.doesNotMatch(statusText(env), /no price for some past days/);
+});
