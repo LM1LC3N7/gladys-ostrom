@@ -1,0 +1,122 @@
+[
+  {
+    "name": "any token error is a refusal",
+    "file": "src/ostrom/client.js",
+    "from": "if ((status === 400 || status === 401) && oauth && REFUSED.has(oauth)) {",
+    "to": "if (status !== 200) {"
+  },
+  {
+    "name": "an API 401/403 taken as a refusal",
+    "file": "src/ostrom/client.js",
+    "from": "if (status === 401 || status === 403) throw new OstromError('unauthorized', { status });",
+    "to": "if (status === 401 || status === 403) throw new OstromError('refused', { status });"
+  },
+  {
+    "name": "body read whole",
+    "file": "src/ostrom/client.js",
+    "from": "    if (size > max) {",
+    "to": "    if (false) {"
+  },
+  {
+    "name": "no gap between requests",
+    "file": "src/ostrom/client.js",
+    "from": "if (wait > 0 && this.sleep) await this.sleep(wait);",
+    "to": ""
+  },
+  {
+    "name": "token never renewed",
+    "file": "src/ostrom/client.js",
+    "from": "if (!this.token || this.monotonic() >= this.tokenDue) {",
+    "to": "if (!this.token) {"
+  },
+  {
+    "name": "no new token after an API 401",
+    "file": "src/ostrom/client.js",
+    "from": "if (err.code !== 'unauthorized' || err.status !== 401) throw err;",
+    "to": "throw err;"
+  },
+  {
+    "name": "a refusal still schedules reads",
+    "file": "src/app.js",
+    "from": "    if (!this.session || this.isRefused()) {\n      this.dueMono = undefined;",
+    "to": "    if (!this.session) {\n      this.dueMono = undefined;"
+  },
+  {
+    "name": "the pause ignored by the schedule",
+    "file": "src/app.js",
+    "from": "if (this.pause) due = Math.max(due, this.pause.due);",
+    "to": ""
+  },
+  {
+    "name": "a restart reads at once",
+    "file": "src/app.js",
+    "from": "? mono + Math.max(0, interval - (now - lastWall))",
+    "to": "? mono"
+  },
+  {
+    "name": "the failures in a row forgotten at a restart",
+    "file": "src/app.js",
+    "from": "      this.failures = Math.min(data.failures, 16);",
+    "to": ""
+  },
+  {
+    "name": "prices asked at every round while missing",
+    "file": "src/app.js",
+    "from": "if (!this.covered(targets, now, this.neededUntil(now))) return hourly;",
+    "to": "if (!this.covered(targets, now, this.neededUntil(now))) return mono;"
+  },
+  {
+    "name": "prices of an unknown postcode kept",
+    "file": "src/app.js",
+    "from": "if (!parsed.zipKnown) {",
+    "to": "if (false) {"
+  },
+  {
+    "name": "a started quarter repriced",
+    "file": "src/app.js",
+    "from": "if (q <= now && kept[index] !== undefined) continue;",
+    "to": ""
+  },
+  {
+    "name": "a half hour priced at one quarter",
+    "file": "src/app.js",
+    "from": "const p2 = p1 === undefined ? undefined : this.priceFor(c.key, t0 + QUARTER);",
+    "to": "const p2 = p1;"
+  },
+  {
+    "name": "a negative price gives a negative cost",
+    "file": "src/app.js",
+    "from": "const cost = Math.max(0, (kwh * (p1 + p2)) / 2);",
+    "to": "const cost = (kwh * (p1 + p2)) / 2;"
+  },
+  {
+    "name": "a contract suffix guessed",
+    "file": "src/app.js",
+    "from": "return matches.length === 1 ? matches[0] : undefined;",
+    "to": "return matches[0] ?? known[0];"
+  },
+  {
+    "name": "/data overwritten while unreadable",
+    "file": "src/app.js",
+    "from": "    if (this.storeState !== 'ok') return false;",
+    "to": ""
+  },
+  {
+    "name": "two prices of one quarter: one kept",
+    "file": "src/ostrom/model.js",
+    "from": "  for (const q of conflicts) prices.delete(q);",
+    "to": ""
+  },
+  {
+    "name": "an hour not ended published",
+    "file": "src/ostrom/model.js",
+    "from": "at + HOUR > now",
+    "to": "at > now"
+  },
+  {
+    "name": "a secret sent without its client id",
+    "file": "src/config.js",
+    "from": "    config.problem = 'half';",
+    "to": ""
+  }
+]

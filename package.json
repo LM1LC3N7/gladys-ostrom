@@ -1,8 +1,8 @@
 {
-  "name": "gladys-integration-template-js",
-  "version": "1.0.0",
+  "name": "gladys-ostrom",
+  "version": "0.1.0",
   "private": true,
-  "description": "Official starter template to build an external integration for Gladys Assistant with the JavaScript SDK.",
+  "description": "Ostrom (Germany) for Gladys Assistant: SimplyDynamic prices (spot price, taxes and levies of your postcode) for a delegated energy contract, and the smart-meter consumption, read from the official Ostrom API with your own API client. Read-only. Unofficial, not affiliated with Ostrom.",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -10,10 +10,18 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "node --test"
+    "test": "node --test --test-timeout=60000",
+    "audit": "npm audit --omit=dev",
+    "cover": "node scripts/cover.mjs cover.png",
+    "mutants": "node scripts/mutants.mjs",
+    "validate:manifest": "npx --yes github:GladysAssistant/integration-store ."
   },
   "engines": {
     "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LM1LC3N7/gladys-ostrom.git"
   },
   "dependencies": {
     "@gladysassistant/integration-sdk": "^0.16.0"

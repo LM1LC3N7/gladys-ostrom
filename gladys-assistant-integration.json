@@ -1,177 +1,151 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "Ostrom",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "Unofficial: Ostrom (Germany) SimplyDynamic prices and smart-meter consumption.",
+    "fr": "Non officiel : prix SimplyDynamic d'Ostrom (Allemagne) et conso du compteur communicant."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
-  "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-ostrom:0.1.0",
+  "gladys_version": ">=5.2.0",
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-ostrom/main/cover.png",
+  "categories": ["energy"],
+  "transports": ["cloud"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Ostrom API client",
+        "fr": "Client d'API Ostrom"
+      },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Unofficial connector, not affiliated with Ostrom. For Ostrom electricity customers in Germany. Log in to the Ostrom Developer Portal (developer.ostrom-api.io) with your Ostrom app account, create an API client for the production environment, accept the developer consent, then copy its client id and client secret here. The integration reads your contracts, the smart-meter consumption (hourly) for the Gladys energy monitoring and, for a SimplyDynamic contract, the prices of every quarter of an hour for your postcode (spot price, taxes, levies and VAT). Read-only: nothing is ever changed on your account. Then create an energy contract from the \"Ostrom SimplyDynamic\" template.",
+        "fr": "Connecteur non officiel, sans lien avec Ostrom. Pour les clients d'électricité d'Ostrom en Allemagne. Connectez-vous à l'Ostrom Developer Portal (developer.ostrom-api.io) avec le compte de votre application Ostrom, créez un client d'API pour l'environnement de production, acceptez le consentement développeur, puis copiez ici son identifiant client et son secret client. L'intégration lit vos contrats, la consommation du compteur communicant (à l'heure) pour le suivi énergétique de Gladys et, pour un contrat SimplyDynamic, le prix de chaque quart d'heure pour votre code postal (prix spot, taxes, prélèvements et TVA). Lecture seule : rien n'est jamais modifié sur votre compte. Créez ensuite un contrat d'énergie depuis le modèle « Ostrom SimplyDynamic »."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/LM1LC3N7/gladys-ostrom/blob/main/docs/fr.md",
+          "label": { "en": "Guide (French)", "fr": "Guide (français)" }
+        },
+        {
+          "url": "https://github.com/LM1LC3N7/gladys-ostrom/blob/main/docs/en.md",
+          "label": { "en": "Guide (English)", "fr": "Guide (anglais)" }
+        },
+        {
+          "url": "https://developer.ostrom-api.io/",
+          "label": { "en": "Ostrom Developer Portal", "fr": "Ostrom Developer Portal" }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
-      "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
+      "key": "client_id",
+      "type": "string",
       "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "label": { "en": "Client id", "fr": "Identifiant client" },
+      "description": {
+        "en": "The client id of your API client, from the Ostrom Developer Portal.",
+        "fr": "L'identifiant client de votre client d'API, depuis l'Ostrom Developer Portal."
+      },
+      "placeholder": { "en": "e.g. 19749ac8cb254b…", "fr": "ex. 19749ac8cb254b…" }
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
-      "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
-      },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
+      "key": "client_secret",
+      "type": "secret",
       "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "label": { "en": "Client secret", "fr": "Secret client" },
+      "description": {
+        "en": "Kept by Gladys in its database, never shown again, sent only to Ostrom (auth.production.ostrom-api.io, or the sandbox one) to obtain an access token.",
+        "fr": "Gardé par Gladys dans sa base, jamais réaffiché, envoyé seulement à Ostrom (auth.production.ostrom-api.io, ou celui du bac à sable) pour obtenir un jeton d'accès."
+      }
     },
     {
-      "key": "unit",
+      "key": "environment",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
       "required": false,
-      "default": "celsius",
-      "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
-      ]
-    },
-    {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "default": "production",
+      "label": { "en": "Environment", "fr": "Environnement" },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Production for your real contract. Sandbox only for an API client created for the Ostrom sandbox (test data).",
+        "fr": "Production pour votre vrai contrat. Bac à sable seulement pour un client d'API créé pour le bac à sable d'Ostrom (données de test)."
       },
-      "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "options": [
+        { "value": "production", "label": { "en": "Production", "fr": "Production" } },
+        {
+          "value": "sandbox",
+          "label": { "en": "Sandbox (test data)", "fr": "Bac à sable (données de test)" }
+        }
+      ]
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
-      "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
+      "key": "test_connection",
+      "timeout_seconds": 60,
+      "label": { "en": "Test the connection", "fr": "Tester la connexion" },
+      "description": {
+        "en": "Obtains a token and lists the contracts (at most once a minute).",
+        "fr": "Obtient un jeton et liste les contrats (au plus une fois par minute)."
+      }
     }
   ],
-  "scene_triggers": [
-    {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
-      },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
+  "energy_contracts": {
+    "templates": [
+      {
+        "key": "ostrom-simply-dynamic",
+        "name": { "en": "Ostrom SimplyDynamic", "fr": "Ostrom SimplyDynamic" },
+        "description": {
+          "en": "Your Ostrom SimplyDynamic tariff: every half hour priced at the mean of its two quarter-hour prices read from Ostrom for your postcode (day-ahead spot price, taxes, levies and variable grid fees, VAT included; a negative price costs 0), plus the monthly fees you enter. A §14a variable grid fee (module 3) is not included.",
+          "fr": "Votre tarif SimplyDynamic d'Ostrom : chaque demi-heure tarifée à la moyenne de ses deux prix au quart d'heure lus chez Ostrom pour votre code postal (prix spot day-ahead, taxes, prélèvements et frais de réseau variables, TVA incluse ; un prix négatif coûte 0), plus les frais mensuels que vous saisissez. Un tarif de réseau variable §14a (module 3) n'est pas inclus."
         },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
+        "country": "DE",
+        "currency": "EUR",
+        "timezone": "Europe/Berlin",
+        "pricing_mode": "delegated",
+        "version": "2026-11-11",
+        "inputs": [
+          {
+            "key": "contract_suffix",
+            "type": "string",
+            "required": false,
+            "label": {
+              "en": "Last 4 digits of the Ostrom contract (empty: the only one)",
+              "fr": "4 derniers chiffres du contrat Ostrom (vide : le seul)"
+            },
+            "description": {
+              "en": "Shown in the name of the device; required with several Ostrom contracts.",
+              "fr": "Visibles dans le nom de l'appareil ; obligatoires avec plusieurs contrats Ostrom."
+            }
+          },
+          {
+            "key": "monthly_fees",
+            "type": "number",
+            "unit": "EUR/month",
+            "default": 0,
+            "label": {
+              "en": "Base fee and grid fees per month",
+              "fr": "Frais de base et de réseau par mois"
+            },
+            "description": {
+              "en": "Shown by the \"Base fee and grid fees per month\" feature of the device, VAT included.",
+              "fr": "Affichés par la fonctionnalité « Frais de base et de réseau par mois » de l'appareil, TVA incluse."
+            }
+          }
+        ],
+        "tariff": {
+          "tariff_version": 1,
+          "components": [
+            {
+              "key": "monthly_fees",
+              "kind": "fixed",
+              "label": "Grundgebühr und Netzentgelte",
+              "amount": "{{input:monthly_fees}}",
+              "per": "month"
+            }
           ]
         }
-      ],
-      "variables": [
-        {
-          "key": "target",
-          "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
-        }
-      ]
-    }
-  ],
-  "scene_actions": [
-    {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
-      },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
-        }
-      ]
-    }
-  ],
-  "widgets": [
-    {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
-      "icon": "activity",
-      "action_timeout_seconds": 15
-    }
-  ]
+      }
+    ]
+  }
 }
