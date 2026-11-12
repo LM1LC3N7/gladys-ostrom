@@ -8,7 +8,8 @@
   },
   "version": "0.1.0",
   "docker_image": "ghcr.io/lm1lc3n7/gladys-ostrom:0.1.0",
-  "gladys_version": ">=5.2.0",
+  "gladys_version": ">=5.3.0",
+  "countries": ["DE"],
   "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-ostrom/main/cover.png",
   "categories": ["energy"],
   "transports": ["cloud"],
@@ -96,8 +97,8 @@
         "key": "ostrom-simply-dynamic",
         "name": { "en": "Ostrom SimplyDynamic", "fr": "Ostrom SimplyDynamic" },
         "description": {
-          "en": "Your Ostrom SimplyDynamic tariff: every half hour priced at the mean of its two quarter-hour prices read from Ostrom for your postcode (day-ahead spot price, taxes, levies and variable grid fees, VAT included; a negative price costs 0), plus the monthly fees you enter. A §14a variable grid fee (module 3) is not included.",
-          "fr": "Votre tarif SimplyDynamic d'Ostrom : chaque demi-heure tarifée à la moyenne de ses deux prix au quart d'heure lus chez Ostrom pour votre code postal (prix spot day-ahead, taxes, prélèvements et frais de réseau variables, TVA incluse ; un prix négatif coûte 0), plus les frais mensuels que vous saisissez. Un tarif de réseau variable §14a (module 3) n'est pas inclus."
+          "en": "Your Ostrom SimplyDynamic tariff: every half hour priced at the mean of its two quarter-hour prices read from Ostrom for your postcode (day-ahead spot price, taxes, levies and variable grid fees, VAT included; a half hour whose mean price is negative costs 0), plus the monthly fees you enter. A §14a variable grid fee (module 3) is not included.",
+          "fr": "Votre tarif SimplyDynamic d'Ostrom : chaque demi-heure tarifée à la moyenne de ses deux prix au quart d'heure lus chez Ostrom pour votre code postal (prix spot day-ahead, taxes, prélèvements et frais de réseau variables, TVA incluse ; une demi-heure dont le prix moyen est négatif coûte 0), plus les frais mensuels que vous saisissez. Un tarif de réseau variable §14a (module 3) n'est pas inclus."
         },
         "country": "DE",
         "currency": "EUR",

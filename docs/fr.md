@@ -24,8 +24,9 @@ compte.
 - **Le modèle de contrat d'énergie « Ostrom SimplyDynamic »** : Gladys demande
   à l'intégration le coût de chaque demi-heure ; elle répond avec la moyenne
   des deux prix au quart d'heure de votre code postal multipliée par la
-  consommation. Un prix négatif coûte 0 (Gladys n'accepte pas de coût
-  négatif). Les frais mensuels sont un montant fixe que vous saisissez dans le
+  consommation. Une demi-heure dont le prix moyen est négatif coûte 0 (Gladys
+  n'accepte pas de coût négatif) : le coût affiché par Gladys dépasse alors
+  votre facture du crédit accordé par Ostrom, s'il en accorde un. Les frais mensuels sont un montant fixe que vous saisissez dans le
   contrat.
 
 ## Mise en route
@@ -55,6 +56,8 @@ d'API créé pour le bac à sable d'Ostrom (données de test).
 ## À quel rythme elle lit
 
 - Les contrats : toutes les 6 heures.
+- Les prix passés manquants (après un arrêt, une panne) : jusqu'à 31 jours en
+  arrière, au plus toutes les 6 heures.
 - Les prix : quand ceux qu'elle a ne couvrent pas la fin de la journée (ou,
   dès 15 h heure allemande, quand Ostrom les charge, toute la journée de
   demain), au plus une fois par heure. Une fois demain connu, plus rien avant
@@ -80,9 +83,13 @@ divise par 100. Les prix des quarts d'heure passés sont gardés 40 jours dans
 contrat à partir du jour où vous installez l'intégration.
 
 Non inclus : un tarif de réseau variable §14a (module 3), une remise ou un
-bonus de votre contrat. Une demi-heure dont les deux prix au quart d'heure ne
-sont pas tous deux connus n'est pas tarifée (Gladys réessaie plus tard) : jamais
-de prix deviné ni de prix nul.
+bonus de votre contrat. Jamais de prix deviné ni de prix nul : quand un seul
+prix au quart d'heure d'une période manque, toute la demande de Gladys pour
+cette période de facturation échoue, et aucun coût n'est gardé tant que le
+prix n'est pas connu. L'intégration relit donc les quarts d'heure passés sans
+prix (jusqu'à 31 jours en arrière, au plus toutes les 6 heures), par exemple
+après un arrêt de Gladys ; un prix qu'Ostrom ne donne jamais laisse ces coûts
+vides.
 
 ## Messages
 

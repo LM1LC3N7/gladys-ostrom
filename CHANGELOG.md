@@ -22,3 +22,7 @@ the notes of the version's GitHub Release.
   40 days in `/data`.
 - Test button, refused credentials kept (never sent again until changed or
   Test succeeds), pauses on 429 and 5xx kept across restarts.
+- The manifest declares `countries: ["DE"]` (the store shows the integration
+  for Germany), which needs Gladys 5.3.0 or later.
+- Past quarters without a price (Gladys stopped, Ostrom unavailable) are read
+  again, up to 31 days back, at most every 6 hours.

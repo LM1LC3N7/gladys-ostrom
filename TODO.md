@@ -8,9 +8,8 @@
 - [ ] Turn on "Private vulnerability reporting" (SECURITY.md points there).
 - [ ] Add the `gladys-assistant-integration` topic to publish in the store
       (after the first release: the store validator needs the GHCR image).
-- [ ] Store fields left out of the manifest on purpose (Louis' rule):
-      `countries: ["DE"]`, keywords `ostrom`, `SimplyDynamic`,
-      `dynamischer Stromtarif`.
+- [ ] Store keywords left out of the manifest on purpose (Louis' rule):
+      `ostrom`, `SimplyDynamic`, `dynamischer Stromtarif`.
 
 ## To confirm on a real account (built from the documentation only)
 
@@ -20,9 +19,13 @@
       feature and is never priced.
 - [ ] The token endpoint answers a wrong client with `invalid_client` (HTTP
       400 or 401, as OAuth2 says): the only refusal.
-- [ ] `GET /spot-prices?resolution=QUARTER_HOUR` for a day already past
-      (yesterday is read too), and how far ahead tomorrow comes (15:00 to
-      17:00 CET according to the docs).
+- [ ] `GET /spot-prices?resolution=QUARTER_HOUR` for days already past (up
+      to 31 days back, by windows of 20 days, to fill the quarters missed
+      during a stop), and how far ahead tomorrow comes (15:00 to 17:00 CET
+      according to the docs).
+- [ ] Does Ostrom credit a negative price? The module counts 0 for a half
+      hour whose mean price is negative (the core refuses a negative cost):
+      the Gladys cost is then above the bill.
 - [ ] `grossKwhPrice + grossKwhTaxAndLevies` is what Ostrom bills per kWh of a
       SimplyDynamic contract (no other per-kWh margin), and the monthly fees
       are `grossMonthlyOstromBaseFee + grossMonthlyGridFees`.
@@ -37,8 +40,9 @@
 
 - **Version 0.1.0** set by hand (package, lock, manifest, image tag) when
   leaving the template; the Release workflow owns it from now on.
-- **`gladys_version: ">=5.2.0"`**, not 5.1.0: `publishEnergyConsumption` and
-  the energy contracts arrived in Gladys 5.2.0 (as gladys-octopus-germany).
+- **`gladys_version: ">=5.3.0"`** with `countries: ["DE"]` (Louis' rule of
+  2026-11-12: `countries` needs 5.3.0); `publishEnergyConsumption` and the
+  energy contracts need 5.2.0 anyway.
 - **Read-only (v1)**: only GET requests and the token request.
 - **One delegated template, no calendar.** The price per kWh depends on the
   customer's postcode (taxes, levies and grid fees): a shared calendar key
@@ -49,7 +53,10 @@
   computes it); the feature shows the value read.
 - **Prices**: gross, VAT included, cents / 100. A half hour is priced at the
   mean of its two quarters (the core sends 30-minute intervals); a negative
-  price costs 0; an unknown price fails the request (never a silent zero). An
+  mean of a half hour costs 0; an unknown price fails the whole request of
+  its billing period (never a silent zero), so the past quarters without a
+  price (31 days back, the core's catch-up window) are read again at most
+  every 6 hours, by windows of 20 days. An
   hourly answer prices its four quarters. A quarter already started keeps the
   price first kept for it (a retry gets the same answer). Prices kept 40 days
   in `/data`, by contract.

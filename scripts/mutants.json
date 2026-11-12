@@ -118,5 +118,47 @@
     "file": "src/config.js",
     "from": "    config.problem = 'half';",
     "to": ""
+  },
+  {
+    "name": "missing taxes guessed 0",
+    "file": "src/ostrom/model.js",
+    "from": "    const taxes = item.grossKwhTaxAndLevies;\n",
+    "to": "    const taxes = item.grossKwhTaxAndLevies ?? 0;\n"
+  },
+  {
+    "name": "second quarter guessed 0",
+    "file": "src/app.js",
+    "from": "const p2 = p1 === undefined ? undefined : this.priceFor(c.key, t0 + QUARTER);",
+    "to": "const p2 = p1 === undefined ? undefined : (this.priceFor(c.key, t0 + QUARTER) ?? 0);"
+  },
+  {
+    "name": "future pause in /data not capped",
+    "file": "src/app.js",
+    "from": "const left = Math.min(Math.max(0, pause.until - now), PAUSE_MAX);",
+    "to": "const left = Math.max(0, pause.until - now);"
+  },
+  {
+    "name": "Retry-After not capped",
+    "file": "src/app.js",
+    "from": "const ms = Math.min(PAUSE_MAX, Math.max(PAUSE_MIN, asked, base * 2 ** (count - 1)));",
+    "to": "const ms = Math.max(PAUSE_MIN, asked, base * 2 ** (count - 1));"
+  },
+  {
+    "name": "instant without zone accepted",
+    "file": "src/time.js",
+    "from": "(Z|[+-]\\d{2}:\\d{2})$/.test(value)",
+    "to": "(Z|[+-]\\d{2}:\\d{2})?$/.test(value)"
+  },
+  {
+    "name": "past holes never read again",
+    "file": "src/app.js",
+    "from": "const hole = this.firstHole(targets, now);",
+    "to": "const hole = undefined;"
+  },
+  {
+    "name": "past holes read at every round",
+    "file": "src/app.js",
+    "from": "this.dueOf(this.lastPricesMono, this.data.lastPrices, HOLES_INTERVAL, mono, now),",
+    "to": "mono,"
   }
 ]

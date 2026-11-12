@@ -53,13 +53,16 @@ test('prices: cents to EUR per kWh with taxes; fees; a value unreadable is unkno
   body.data[1].grossKwhPrice = null;
   body.data[2].grossKwhTaxAndLevies = '19';
   body.data[3].date = '2026-11-11 00:45';
+  // An item without taxes among taxed items: unknown, never the spot price alone.
+  body.data[4].grossKwhTaxAndLevies = undefined;
   const parsed = parseSpotPrices(body, from + HOUR);
   assert.equal(parsed.zipKnown, true);
   assert.equal(parsed.prices.get(from), O.priceOf(from));
   assert.equal(parsed.prices.has(from + QUARTER), false);
   assert.equal(parsed.prices.has(from + 2 * QUARTER), false);
   assert.equal(parsed.prices.has(from + 3 * QUARTER), false);
-  assert.equal(parsed.prices.get(from + HOUR), O.priceOf(from + HOUR));
+  assert.equal(parsed.prices.has(from + HOUR), false);
+  assert.equal(parsed.prices.get(from + HOUR + QUARTER), O.priceOf(from + HOUR));
   assert.equal(parsed.fees, 10.57);
   assert.equal(parseSpotPrices({ data: {} }, from), undefined);
 });
@@ -128,4 +131,22 @@ test('consumption: ended hours only, split in two halves; conflicts and bad valu
     ],
   );
   assert.equal(parseConsumption({}, now), undefined);
+});
+
+test('an instant without its zone is never read (never the container time zone)', async () => {
+  const { parseInstant } = await import('../src/time.js');
+  assert.equal(parseInstant('2026-11-11T10:00:00'), undefined);
+  assert.equal(parseInstant('2026-11-11T10:00:00.000Z'), Date.parse('2026-11-11T10:00:00Z'));
+  assert.equal(parseInstant('2026-11-11T11:00:00+01:00'), Date.parse('2026-11-11T10:00:00Z'));
+  const body = { data: [{ date: '2026-11-11T10:00:00', kWh: 1 }] };
+  assert.deepEqual(parseConsumption(body, Date.parse('2026-11-12T00:00:00Z')), []);
+});
+
+test('a pause read back from /data is capped to 6 hours', async () => {
+  const { validPause } = await import('../src/app.js');
+  const now = O.NOW;
+  const pause = validPause({ until: now + 30 * 24 * HOUR, count: 1, code: 'server' }, now, 0);
+  assert.equal(pause.until - now, 6 * HOUR);
+  assert.equal(pause.due, 6 * HOUR);
+  assert.equal(validPause({ until: now, count: 1, code: 'other' }, now, 0), undefined);
 });

@@ -60,9 +60,9 @@ test('start: one token, the contracts and the prices; Discovery, status; nothing
   t.after(() => env.app.stop());
   assert.deepEqual(
     env.ostrom.calls.map((c) => c.op),
-    ['token', 'contracts', 'prices'],
+    ['token', 'contracts', 'prices', 'prices'],
   );
-  const [tokenCall, contractsCall, pricesCall] = env.ostrom.calls;
+  const [tokenCall, contractsCall, pricesCall, pricesCall2] = env.ostrom.calls;
   assert.equal(tokenCall.url, 'https://auth.production.ostrom-api.io/oauth2/token');
   assert.equal(tokenCall.method, 'POST');
   assert.equal(tokenCall.body, 'grant_type=client_credentials');
@@ -75,9 +75,12 @@ test('start: one token, the contracts and the prices; Discovery, status; nothing
   assert.match(contractsCall.auth, /^Bearer tok-/);
   assert.equal(pricesCall.query.zip, O.ZIP);
   assert.equal(pricesCall.query.resolution, 'QUARTER_HOUR');
-  // Yesterday to the end of tomorrow, German days.
-  assert.equal(Date.parse(pricesCall.query.startDate), fromBerlin(2026, 11, 10));
-  assert.equal(Date.parse(pricesCall.query.endDate), fromBerlin(2026, 11, 13));
+  // Nothing held yet: the 31 days the core may ask, to the end of tomorrow,
+  // German days, by windows of 20 days at most.
+  assert.equal(Date.parse(pricesCall.query.startDate), fromBerlin(2026, 10, 11));
+  assert.equal(Date.parse(pricesCall.query.endDate), fromBerlin(2026, 10, 31));
+  assert.equal(Date.parse(pricesCall2.query.startDate), fromBerlin(2026, 10, 31));
+  assert.equal(Date.parse(pricesCall2.query.endDate), fromBerlin(2026, 11, 13));
   const [device] = env.fake.discoveredDevices;
   assert.equal(device.name, 'Ostrom electricity (contract …3456)');
   assert.equal(device.external_id, `ext:ostrom:contract:${KEY}`);
@@ -105,7 +108,10 @@ test('prices: kept by quarter, published as features; the next read at 15:00, th
   // Tomorrow's prices are not there yet.
   const ostrom = createOstrom({
     prices: ({ query }) =>
-      O.spotPrices({ from: Date.parse(query.startDate), to: fromBerlin(2026, 11, 12) }),
+      O.spotPrices({
+        from: Date.parse(query.startDate),
+        to: Math.min(Date.parse(query.endDate), fromBerlin(2026, 11, 12)),
+      }),
   });
   const env = await withDevice({ ostrom });
   t.after(() => env.app.stop());
@@ -116,20 +122,22 @@ test('prices: kept by quarter, published as features; the next read at 15:00, th
   // The prices of today are held: nothing until 15:00 (14:00 UTC), then hourly
   // while tomorrow's are not there.
   await env.wait(4 * HOUR - MINUTE);
-  assert.equal(env.ostrom.count('prices'), 1);
+  // The first read: two windows (the 31 days the core may ask).
+  const n = env.ostrom.count('prices');
+  assert.equal(n, 2);
   await env.wait(2 * MINUTE);
-  assert.equal(env.ostrom.count('prices'), 2);
+  assert.equal(env.ostrom.count('prices'), n + 1);
   await env.wait(HOUR - 2 * MINUTE);
-  assert.equal(env.ostrom.count('prices'), 2, 'never sooner than an hour');
+  assert.equal(env.ostrom.count('prices'), n + 1, 'never sooner than an hour');
   await env.wait(2 * MINUTE);
-  assert.equal(env.ostrom.count('prices'), 3);
+  assert.equal(env.ostrom.count('prices'), n + 2);
   // Tomorrow's prices arrive: none asked again before 15:00 tomorrow.
   env.ostrom.answers.prices = ({ query }) =>
     O.spotPrices({ from: Date.parse(query.startDate), to: Date.parse(query.endDate) });
   await env.wait(HOUR);
-  assert.equal(env.ostrom.count('prices'), 4);
+  assert.equal(env.ostrom.count('prices'), n + 3);
   await env.wait(20 * HOUR);
-  assert.equal(env.ostrom.count('prices'), 4);
+  assert.equal(env.ostrom.count('prices'), n + 3);
   // The price feature follows the quarters (no request).
   const now = env.clock.now;
   assert.equal(lastState(env, F('price')), O.priceOf(now - (now % QUARTER)));
@@ -416,7 +424,7 @@ test('delegated pricing: each half hour at the mean of its two quarters, a negat
     contract: contract(),
     billing_period: {},
     cumulative_before: {},
-    intervals: [{ starts_at: new Date(t0 - 2 * DAY).toISOString(), kwh: 1, max_power_kw: 1 }],
+    intervals: [{ starts_at: new Date(t0 - 35 * DAY).toISOString(), kwh: 1, max_power_kw: 1 }],
   });
   assert.equal(missing.success, false);
   // An unknown contract suffix: never a guess.
@@ -650,4 +658,91 @@ test('a quarter already started keeps the price first kept (a retry gets the sam
   );
   assert.equal(env.app.priceFor(KEY, past), O.priceOf(past));
   assert.equal(env.app.priceFor(KEY, future), 8);
+});
+
+test('after a stop of 3 days: the missing prices read again, every half hour of the 7-day backfill priced', async (t) => {
+  const store = createMemoryStore();
+  // Before the stop, the prices known up to noon only.
+  const before = createOstrom({
+    prices: ({ query }) =>
+      O.spotPrices({
+        from: Date.parse(query.startDate),
+        to: Math.min(Date.parse(query.endDate), fromBerlin(2026, 11, 11, 12)),
+      }),
+  });
+  const env = await withDevice({ store, ostrom: before });
+  await env.wait(2 * MINUTE);
+  await env.app.stop();
+  const restartAt = env.clock.now + 3 * DAY;
+  const ostrom = createOstrom();
+  const later = await started({
+    store,
+    ostrom,
+    now: restartAt,
+    devices: [deviceOf(env)],
+  });
+  t.after(() => later.app.stop());
+  const windows = ostrom.calls.filter((c) => c.op === 'prices');
+  assert.ok(windows.length >= 1);
+  // The first window starts on the day of the first quarter missing (the day of the stop).
+  assert.equal(Date.parse(windows[0].query.startDate), fromBerlin(2026, 11, 11));
+  // Every half hour of the 7 days of consumption the module publishes (the
+  // fake Gladys refuses intervals after the real date: built here) is priced.
+  const intervals = [];
+  for (let at = fromBerlin(2026, 11, 7); at + 30 * MINUTE <= restartAt; at += 30 * MINUTE) {
+    intervals.push({ starts_at: new Date(at).toISOString(), kwh: 0.2, max_power_kw: 1 });
+  }
+  assert.ok(intervals.length > 7 * 48);
+  const ack = await later.fake.energyPrice({
+    contract: contract(),
+    billing_period: {},
+    cumulative_before: {},
+    intervals,
+  });
+  assert.equal(ack.success, true, JSON.stringify(ack).slice(0, 300));
+});
+
+test('a past hole Ostrom cannot fill is asked again every 6 hours, never more often', async (t) => {
+  const ostrom = createOstrom({
+    prices: ({ query }) => {
+      const body = O.spotPrices({
+        from: Date.parse(query.startDate),
+        to: Date.parse(query.endDate),
+      });
+      // 2026-11-01 never comes.
+      body.data = body.data.filter((x) => !x.date.startsWith('2026-11-01'));
+      return body;
+    },
+  });
+  const env = await started({ ostrom });
+  t.after(() => env.app.stop());
+  const first = ostrom.count('prices');
+  await env.wait(6 * HOUR - 2 * MINUTE);
+  assert.equal(ostrom.count('prices'), first);
+  await env.wait(4 * MINUTE);
+  assert.ok(ostrom.count('prices') > first);
+});
+
+test('a half hour whose second quarter is missing is not priced (never half a price)', async (t) => {
+  const env = await started();
+  t.after(() => env.app.stop());
+  const t0 = fromBerlin(2026, 11, 11, 8);
+  delete env.app.data.prices[KEY][Math.floor((t0 + QUARTER) / QUARTER)];
+  const ack = await env.fake.energyPrice({
+    contract: contract(),
+    billing_period: {},
+    cumulative_before: {},
+    intervals: [{ starts_at: new Date(t0).toISOString(), kwh: 1, max_power_kw: 1 }],
+  });
+  assert.equal(ack.success, false);
+});
+
+test('a huge Retry-After pauses 6 hours at most', async (t) => {
+  const store = createMemoryStore();
+  const ostrom = createOstrom({
+    contracts: () => json({ type: 'too_many' }, 429, { 'retry-after': '999999' }),
+  });
+  const env = await started({ store, ostrom });
+  t.after(() => env.app.stop());
+  assert.equal(store.data.pause.until - env.clock.now, 6 * HOUR);
 });

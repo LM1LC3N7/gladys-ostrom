@@ -49,6 +49,14 @@ export const ROUND_INTERVAL = HOUR;
 export const CONTRACTS_INTERVAL = 6 * HOUR;
 /** Tomorrow's prices are loaded by Ostrom between 15:00 and 17:00 (German time). */
 export const PRICES_HOUR = 15;
+/**
+ * Past quarters without a price (an outage, a 429, a stop of Gladys) are read
+ * again, as far back as the core may ask (31 days), at most every 6 hours, by
+ * windows of 20 days (1,920 quarters: under the 2,000 items read of an answer).
+ */
+export const PRICE_BACKFILL_DAYS = 31;
+export const PRICE_WINDOW_DAYS = 20;
+export const HOLES_INTERVAL = 6 * HOUR;
 /** The consumption of the created devices: every 3 hours, the last 3 days. */
 export const CONSUMPTION_INTERVAL = 3 * HOUR;
 export const CONSUMPTION_DAYS = 3;

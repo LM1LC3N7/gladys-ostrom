@@ -22,8 +22,10 @@ API. **Read-only**: nothing is ever changed on your account.
     VAT included).
 - **The energy contract template "Ostrom SimplyDynamic"**: Gladys asks the
   integration the cost of every half hour; it answers with the mean of the two
-  quarter-hour prices of your postcode times the consumption. A negative price
-  costs 0 (Gladys accepts no negative cost). The monthly fees are a fixed
+  quarter-hour prices of your postcode times the consumption. A half hour whose
+  mean price is negative costs 0 (Gladys accepts no negative cost): the cost
+  shown by Gladys is then above your bill by the credit Ostrom grants, if it
+  grants one. The monthly fees are a fixed
   amount you enter in the contract.
 
 ## Setting up
@@ -50,6 +52,8 @@ sandbox (test data).
 ## How often it reads
 
 - The contracts: every 6 hours.
+- The missing past prices (after a stop, an outage): up to 31 days back, at
+  most every 6 hours.
 - The prices: when the ones held do not cover the rest of today (or, from
   15:00 German time, when Ostrom loads them, the whole of tomorrow), at most
   once an hour. Once tomorrow is held, nothing until 15:00 the next day.
@@ -71,8 +75,12 @@ past quarters are kept 40 days in `/data`, so Gladys can price the past
 intervals: create the contract from the day you install the integration.
 
 Not included: a §14a variable grid fee (module 3), any discount or bonus of
-your contract. A half hour whose two quarter prices are not both held is not
-priced (Gladys tries again later): never a guessed or a zero price.
+your contract. Never a guessed or a zero price: when one quarter price of a
+period is missing, Gladys's whole request for that billing period fails and
+no cost is stored for it until the price is known. The integration therefore
+reads the missing past quarters again (up to 31 days back, at most every 6
+hours), for instance after Gladys was stopped; a price Ostrom never gives
+keeps those costs empty.
 
 ## Messages
 

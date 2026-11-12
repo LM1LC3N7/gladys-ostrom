@@ -40,13 +40,16 @@ import {
   CREATED_MIN_GAP,
   DAY,
   FEES_MAX_AGE,
+  HOLES_INTERVAL,
   HOUR,
   MAX_CONTRACTS,
   MAX_PRICE,
   MAX_STATUS,
   PAUSE_MAX,
   PAUSE_MIN,
+  PRICE_BACKFILL_DAYS,
   PRICE_HISTORY_DAYS,
+  PRICE_WINDOW_DAYS,
   PRICES_HOUR,
   QUARTER,
   RATE_LIMIT_PAUSE,
@@ -63,7 +66,7 @@ import { both, t } from './i18n.js';
 import { OstromError, OstromSession } from './ostrom/client.js';
 import { keyOf, parseConsumption, parseContracts, parseSpotPrices } from './ostrom/model.js';
 import { FileStore } from './store.js';
-import { addDays, berlin, clock, fromBerlin, localDate } from './time.js';
+import { addDays, berlin, clock, fromBerlin, localDate, startOfDay } from './time.js';
 
 const TIMED_OUT = Symbol('timed out');
 const finite = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -687,6 +690,30 @@ export class OstromApp {
     return true;
   }
 
+  /**
+   * The first past quarter without a price, as far back as the core may ask
+   * (31 days, never before a contract's start); undefined when none.
+   */
+  firstHole(targets, now) {
+    let first;
+    for (const c of targets) {
+      let from = addDays(now, -PRICE_BACKFILL_DAYS);
+      if (finite(c.start) && c.start > from) from = c.start;
+      const kept = this.data.prices[c.key] ?? {};
+      for (
+        let q = from - (from % QUARTER);
+        q < now && (first === undefined || q < first);
+        q += QUARTER
+      ) {
+        if (kept[Math.floor(q / QUARTER)] === undefined) {
+          first = q;
+          break;
+        }
+      }
+    }
+    return first;
+  }
+
   /** The end of the prices needed now: today, or tomorrow too from 15:00 in Germany. */
   neededUntil(now) {
     return addDays(now, berlin(now).h >= PRICES_HOUR ? 2 : 1);
@@ -707,7 +734,16 @@ export class OstromApp {
       const n = berlin(addDays(now, 1));
       at = fromBerlin(n.y, n.mo, n.d, PRICES_HOUR);
     }
-    return Math.max(hourly, mono + (at - now));
+    let due = mono + (at - now);
+    // A past quarter without a price blocks every delegated request of its
+    // billing period: read again, at most every 6 hours.
+    if (this.firstHole(targets, now) !== undefined) {
+      due = Math.min(
+        due,
+        this.dueOf(this.lastPricesMono, this.data.lastPrices, HOLES_INTERVAL, mono, now),
+      );
+    }
+    return Math.max(hourly, due);
   }
 
   consumptionDue(mono, now) {
@@ -926,32 +962,45 @@ export class OstromApp {
     const targets = this.priceTargets();
     let problem;
     let zipUnknown = false;
+    // From yesterday, or from the day of the first past quarter without a
+    // price, to the end of tomorrow; by windows of at most 20 days.
+    const hole = this.firstHole(targets, now);
+    const start = Math.min(addDays(now, -1), hole === undefined ? Infinity : startOfDay(hole));
+    const end = addDays(now, 2);
+    const windows = [];
+    for (let from = start; from < end;) {
+      const to = Math.min(end, addDays(from, PRICE_WINDOW_DAYS));
+      windows.push([from, to]);
+      from = to;
+    }
     for (const zip of [...new Set(targets.map((c) => c.zip))]) {
-      let parsed;
-      try {
-        const body = await session.get('/spot-prices', {
-          startDate: new Date(addDays(now, -1)).toISOString(),
-          endDate: new Date(addDays(now, 2)).toISOString(),
-          resolution: 'QUARTER_HOUR',
-          zip,
-        });
-        if (this.gone(gen)) return;
-        parsed = parseSpotPrices(body, this.now());
-        if (!parsed) throw new OstromError('bad_response');
-      } catch (err) {
-        if (STOPPING.has(err?.code)) throw err;
-        problem = codeOf(err);
-        this.log.warn(`Prices not read (${problem})`);
-        continue;
-      }
-      if (!parsed.zipKnown) {
-        zipUnknown = true;
-        continue;
-      }
-      for (const c of targets.filter((x) => x.zip === zip)) {
-        this.record(c.key, parsed.prices);
-        if (parsed.fees !== undefined) {
-          this.fees.set(c.key, { value: parsed.fees, mono: this.monotonic() });
+      for (const [from, to] of windows) {
+        let parsed;
+        try {
+          const body = await session.get('/spot-prices', {
+            startDate: new Date(from).toISOString(),
+            endDate: new Date(to).toISOString(),
+            resolution: 'QUARTER_HOUR',
+            zip,
+          });
+          if (this.gone(gen)) return;
+          parsed = parseSpotPrices(body, this.now());
+          if (!parsed) throw new OstromError('bad_response');
+        } catch (err) {
+          if (STOPPING.has(err?.code)) throw err;
+          problem = codeOf(err);
+          this.log.warn(`Prices not read (${problem})`);
+          continue;
+        }
+        if (!parsed.zipKnown) {
+          zipUnknown = true;
+          break;
+        }
+        for (const c of targets.filter((x) => x.zip === zip)) {
+          this.record(c.key, parsed.prices);
+          if (parsed.fees !== undefined) {
+            this.fees.set(c.key, { value: parsed.fees, mono: this.monotonic() });
+          }
         }
       }
     }

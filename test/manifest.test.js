@@ -44,8 +44,11 @@ function* texts(node, path = '') {
 test('the store basics, the version agreeing everywhere, never pinned', () => {
   assert.equal(manifest.manifest_version, 1);
   assert.equal(manifest.type, 'device');
-  // publishEnergyConsumption and the energy contracts arrived with Gladys 5.2.0.
-  assert.equal(manifest.gladys_version, '>=5.2.0');
+  // `countries` (Louis, 2026-11-12) needs Gladys 5.3.0; publishEnergyConsumption
+  // and the energy contracts arrived with 5.2.0.
+  assert.equal(manifest.gladys_version, '>=5.3.0');
+  assert.deepEqual(manifest.countries, ['DE']);
+  for (const c of manifest.countries) assert.match(c, /^[A-Z]{2}$/);
   const pkg = JSON.parse(read('package.json'));
   const lock = JSON.parse(read('package-lock.json'));
   assert.equal(pkg.name, 'gladys-ostrom');
@@ -62,7 +65,6 @@ test('the store basics, the version agreeing everywhere, never pinned', () => {
   assert.deepEqual(manifest.transports, ['cloud']);
   assert.deepEqual(manifest.categories, ['energy']);
   assert.equal(manifest.keywords, undefined);
-  assert.equal(manifest.countries, undefined);
   assert.equal(pkg.scripts.test, 'node --test --test-timeout=60000');
   assert.equal(pkg.license, 'Apache-2.0');
   assert.deepEqual(Object.keys(pkg.dependencies), ['@gladysassistant/integration-sdk']);
